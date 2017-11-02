@@ -1,24 +1,22 @@
 package com.example.nesty.theapp;
 
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Bundle;
 import android.os.Environment;
 import android.os.StrictMode;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
-import android.support.v7.widget.SwitchCompat;
 import android.view.View;
-import android.widget.Button;
-import android.widget.CompoundButton;
-import android.widget.ImageView;
-import android.widget.SeekBar;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.concurrent.ExecutionException;
 
 import io.fotoapparat.Fotoapparat;
 import io.fotoapparat.FotoapparatSwitcher;
@@ -26,7 +24,6 @@ import io.fotoapparat.error.CameraErrorCallback;
 import io.fotoapparat.hardware.CameraException;
 import io.fotoapparat.parameter.LensPosition;
 import io.fotoapparat.parameter.ScaleType;
-import io.fotoapparat.parameter.update.UpdateRequest;
 import io.fotoapparat.photo.BitmapPhoto;
 import io.fotoapparat.preview.Frame;
 import io.fotoapparat.preview.FrameProcessor;
@@ -48,7 +45,6 @@ import static io.fotoapparat.parameter.selector.FocusModeSelectors.fixed;
 import static io.fotoapparat.parameter.selector.LensPositionSelectors.lensPosition;
 import static io.fotoapparat.parameter.selector.Selectors.firstAvailable;
 import static io.fotoapparat.parameter.selector.SizeSelectors.biggestSize;
-import static io.fotoapparat.result.transformer.SizeTransformers.scaled;
 
 public class Meniu extends AppCompatActivity {
 
@@ -65,7 +61,8 @@ public class Meniu extends AppCompatActivity {
         protected void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
             setContentView(R.layout.activity_meniu);
-
+            StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();//In this way the VM ignores the file URI exposure.
+            StrictMode.setVmPolicy(builder.build());// pe scurt, ma lasa sca folosesc Uri pentru versiuni mai noi de 23API
             cameraView = (CameraView) findViewById(R.id.camera_view);
             hasCameraPermission = permissionsDelegate.hasCameraPermission();
 
@@ -157,9 +154,44 @@ public class Meniu extends AppCompatActivity {
         private void takePicture() {
             PhotoResult photoResult = fotoapparatSwitcher.getCurrentFotoapparat().takePicture();
 
-            photoResult.saveToFile(new File(getExternalFilesDir("cam_app"), getPicture()));
 
+            try {
+                PendingResult<BitmapPhoto> result = photoResult.toBitmap();
+                BitmapPhoto bitmapPhoto = result.await();
+                Bitmap bitmap = bitmapPhoto.bitmap;
 
+                bitmap.
+                croppedBitmap = crop(bitmap);
+                ocrtText = ocr(croppedBitmap);
+                TesxtToSpeech(ocrText);
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            File photoFile = new File(getExternalFilesDir("cam_app"), getPicture());
+            photoFile.getAbsolutePath();
+            photoResult.saveToFile(photoFile);
+
+            Intent media = fotoapparatSwitcher.getCurrentFotoapparat().takePicture() ;
+            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+            String imageFileName = timeStamp + ".jpg";
+            File storageDir = getExternalFilesDir(Environment.DIRECTORY_DCIM);
+            File image = null;
+            try {
+                image = File.createTempFile(
+                        imageFileName,  /* prefix */
+                        ".jpg",         /* suffix */
+                        storageDir      /* directory */
+                );
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            Uri photoURI = Uri.fromFile(image);
+            media.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
+            startActivityForResult(media, 1);
         }
 
 
