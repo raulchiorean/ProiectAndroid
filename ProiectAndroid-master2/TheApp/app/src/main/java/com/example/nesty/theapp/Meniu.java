@@ -2,8 +2,6 @@ package com.example.nesty.theapp;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
 import android.support.annotation.NonNull;
@@ -12,11 +10,6 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Toast;
-
-import org.opencv.android.Utils;
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.imgproc.Imgproc;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -40,9 +33,6 @@ import static io.fotoapparat.log.Loggers.logcat;
 import static io.fotoapparat.log.Loggers.loggers;
 import static io.fotoapparat.parameter.selector.AspectRatioSelectors.standardRatio;
 import static io.fotoapparat.parameter.selector.FlashSelectors.autoFlash;
-import static io.fotoapparat.parameter.selector.FlashSelectors.autoRedEye;
-import static io.fotoapparat.parameter.selector.FlashSelectors.off;
-import static io.fotoapparat.parameter.selector.FlashSelectors.torch;
 import static io.fotoapparat.parameter.selector.FocusModeSelectors.autoFocus;
 import static io.fotoapparat.parameter.selector.FocusModeSelectors.continuousFocus;
 import static io.fotoapparat.parameter.selector.FocusModeSelectors.fixed;
@@ -143,12 +133,7 @@ public class Meniu extends AppCompatActivity {
                             autoFocus(),
                             fixed()
                     ))
-                    .flash(firstAvailable(
-                            autoRedEye(),
-                            autoFlash(),
-                            torch(),
-                            off()
-                    ))
+                    .flash(autoFlash())
                     .frameProcessor(new SampleFrameProcessor())
                     .logger(loggers(
                             logcat(),
@@ -162,7 +147,7 @@ public class Meniu extends AppCompatActivity {
                     })
                     .build();
         }
-    private String getPicture() { // genereaza un nume unic
+    private String generatePictureName() { // genereaza un nume unic
         SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss"); // data si ora
         String timestamp = sdf.format(new Date());
         return timestamp +".jpg";
@@ -172,26 +157,7 @@ public class Meniu extends AppCompatActivity {
 
             Fotoapparat.with(this);
             PhotoResult photoResult = fotoapparatSwitcher.getCurrentFotoapparat().takePicture();
-        /*    try {
-                PendingResult<BitmapPhoto> result = photoResult.toBitmap();
-                BitmapPhoto bitmapPhoto = result.await();
-                Bitmap bitmap = bitmapPhoto.bitmap;
-
-            //   bitmap.croppedBitmap = crop(bitmap);
-            //    ocrtText = ocr(croppedBitmap);
-
-             //   TesxtToSpeech(ocrText);
-            } catch (ExecutionException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            */
-
-
-            final File file = new File(getExternalFilesDir("cam_app"), getPicture());
-            _pictureFilePath=file.getAbsolutePath();
-
+            final File file = new File(getExternalFilesDir("cam_app"), generatePictureName());
 
             photoResult.saveToFile(file).whenDone(new PendingResult.Callback<Void>() {
                 @Override
@@ -211,21 +177,6 @@ public class Meniu extends AppCompatActivity {
         switch(requestCode) {
             case OCR_ACTIVITY_CODE: {
                 if (resultCode == Activity.RESULT_OK) {
-                    BitmapFactory.Options bmOptions = new BitmapFactory.Options();
-                    bmOptions.inPreferredConfig = Bitmap.Config.ARGB_8888;
-
-                    Bitmap myBitmap32 = BitmapFactory.decodeFile(_pictureFilePath);
-                    Mat matImage = new Mat(myBitmap32.getHeight(), myBitmap32.getWidth(), CvType.CV_8UC3);
-                    Utils.bitmapToMat(myBitmap32, matImage);
-                    Mat gray = new Mat(matImage.size(), CvType.CV_8UC1);
-                    Imgproc.cvtColor(matImage, gray, Imgproc.COLOR_RGB2GRAY, 4);
-                    Mat edge = new Mat();
-                    Mat dst = new Mat();
-                    Imgproc.Canny(gray, edge, 60, 80);
-                    Imgproc.cvtColor(edge, dst, Imgproc.COLOR_GRAY2RGBA, 4);
-                    Bitmap resultBitmap = Bitmap.createBitmap(dst.cols(), dst.rows(), Bitmap.Config.ARGB_8888);
-                    Utils.matToBitmap(dst, resultBitmap);
-
                     final String detectedText = data.getStringExtra("detectedText");
 
                     t1=new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
