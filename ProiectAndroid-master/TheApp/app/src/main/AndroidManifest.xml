@@ -25,7 +25,7 @@
 
         </activity>
         <activity android:name=".OCR"
-            >
+            android:screenOrientation="portrait" >
 
         </activity>
 

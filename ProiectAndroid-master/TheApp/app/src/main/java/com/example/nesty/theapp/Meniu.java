@@ -33,9 +33,6 @@ import static io.fotoapparat.log.Loggers.logcat;
 import static io.fotoapparat.log.Loggers.loggers;
 import static io.fotoapparat.parameter.selector.AspectRatioSelectors.standardRatio;
 import static io.fotoapparat.parameter.selector.FlashSelectors.autoFlash;
-import static io.fotoapparat.parameter.selector.FlashSelectors.autoRedEye;
-import static io.fotoapparat.parameter.selector.FlashSelectors.off;
-import static io.fotoapparat.parameter.selector.FlashSelectors.torch;
 import static io.fotoapparat.parameter.selector.FocusModeSelectors.autoFocus;
 import static io.fotoapparat.parameter.selector.FocusModeSelectors.continuousFocus;
 import static io.fotoapparat.parameter.selector.FocusModeSelectors.fixed;
@@ -51,13 +48,14 @@ public class Meniu extends AppCompatActivity {
         private boolean hasCameraPermission;
         private CameraView cameraView;
         TextToSpeech t1;
+        public String _pictureFilePath;
 
         private FotoapparatSwitcher fotoapparatSwitcher;
         private Fotoapparat frontFotoapparat;
         private Fotoapparat backFotoapparat;
 
         private GestureDetectorCompat mDetector;
-
+    static{ System.loadLibrary("opencv_java"); }
     @Override
         protected void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
@@ -135,12 +133,7 @@ public class Meniu extends AppCompatActivity {
                             autoFocus(),
                             fixed()
                     ))
-                    .flash(firstAvailable(
-                            autoRedEye(),
-                            autoFlash(),
-                            torch(),
-                            off()
-                    ))
+                    .flash(autoFlash())
                     .frameProcessor(new SampleFrameProcessor())
                     .logger(loggers(
                             logcat(),
@@ -154,7 +147,7 @@ public class Meniu extends AppCompatActivity {
                     })
                     .build();
         }
-    private String getPicture() { // genereaza un nume unic
+    private String generatePictureName() { // genereaza un nume unic
         SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss"); // data si ora
         String timestamp = sdf.format(new Date());
         return timestamp +".jpg";
@@ -164,24 +157,8 @@ public class Meniu extends AppCompatActivity {
 
             Fotoapparat.with(this);
             PhotoResult photoResult = fotoapparatSwitcher.getCurrentFotoapparat().takePicture();
-        /*    try {
-                PendingResult<BitmapPhoto> result = photoResult.toBitmap();
-                BitmapPhoto bitmapPhoto = result.await();
-                Bitmap bitmap = bitmapPhoto.bitmap;
+            final File file = new File(getExternalFilesDir("cam_app"), generatePictureName());
 
-            //   bitmap.croppedBitmap = crop(bitmap);
-            //    ocrtText = ocr(croppedBitmap);
-
-             //   TesxtToSpeech(ocrText);
-            } catch (ExecutionException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            */
-
-
-            final File file = new File(getExternalFilesDir("cam_app"), getPicture());
             photoResult.saveToFile(file).whenDone(new PendingResult.Callback<Void>() {
                 @Override
                 public void onResult(Void t) {
