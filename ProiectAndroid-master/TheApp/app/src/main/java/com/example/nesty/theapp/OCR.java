@@ -18,7 +18,6 @@ import com.google.android.gms.vision.text.TextBlock;
 import com.google.android.gms.vision.text.TextRecognizer;
 
 import org.opencv.android.Utils;
-import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
@@ -29,6 +28,7 @@ import org.opencv.imgproc.Imgproc;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -36,8 +36,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
-
-import static org.opencv.core.CvType.CV_32SC1;
 
 /**
  * Created by nesty on 11/2/2017.
@@ -70,7 +68,6 @@ public class OCR extends AppCompatActivity {
         super.onStart();
         Intent intent = getIntent();
         String bitmapFilePath = intent.getStringExtra("bitmapFilePath");
-        // BitmapFactory.Options bmOptions = new BitmapFactory.Options();
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inPreferredConfig = Bitmap.Config.ARGB_8888;
         options.inSampleSize = 2;
@@ -124,33 +121,30 @@ public class OCR extends AppCompatActivity {
 
     }
 
-
-
-
-
-    private ArrayList<Integer> findXCropPositions(Mat projection)
-    {
-
-        return null;
-    }
-
-
-    private Mat computeXProjection(Mat image) {
-        // Mat reducedImage = new Mat();
-        // double f = 0.5d;
-        // mgproc.resize(image, reducedImage, new Size(f*image.cols(), f*image.rows()));
-        Mat bw = new Mat();
-        Imgproc.threshold(image, bw, 128, 1, Imgproc.THRESH_BINARY| Imgproc.THRESH_OTSU);
-        Mat horizontal = new Mat();
-        Core.reduce(bw, horizontal, 0, Core.REDUCE_SUM, CV_32SC1);
-
-        return horizontal;
-    }
-
-
     private static Mat crop1(Mat matImage, Rect rect)
     {
         return matImage.submat(rect.y, rect.y + rect.height, rect.x, rect.x + rect.width);
+    }
+    void SaveToText(String temp)
+    {
+
+        File root = getExternalFilesDir(Environment.DIRECTORY_DCIM);
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+
+        try {
+
+            if (!root.exists()) {
+                root.mkdirs();
+            }
+            File gpxfile= new File(root,timeStamp +".txt");
+            FileWriter writer = new FileWriter(gpxfile);
+            writer.append(temp);
+            writer.flush();
+            writer.close();
+            //Toast.makeText(ok,"Saved", Toast.LENGTH_SHORT).show();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private void crop(Bitmap bitmap)
@@ -168,9 +162,6 @@ public class OCR extends AppCompatActivity {
         Bitmap resultBitmap1 = Bitmap.createBitmap(dst.cols(), dst.rows(), Bitmap.Config.ARGB_8888);
         Utils.matToBitmap(dst, resultBitmap1);
 
-        // Mat xprojection  = computeXProjection(edge);
-        // List<Integer> xCropPositions = findXCropPositions(xprojection);
-
         Mat bw = new Mat();
         Imgproc.threshold(edge, bw, 128, 1,Imgproc.THRESH_OTSU);
 
@@ -180,6 +171,8 @@ public class OCR extends AppCompatActivity {
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_OPEN, new Size(5, 5));
         Imgproc.dilate(bw, bw, kernel,  new Point(0,1), 25);
         Imgproc.erode(bw, bw, kernel,  new Point(0,1), 1);
+        Imgproc.dilate(bw, bw, kernel,  new Point(0,1), 15);
+
         List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
         Mat hierarchy = new Mat();
 
@@ -205,8 +198,8 @@ public class OCR extends AppCompatActivity {
             Bitmap resultBitmap = Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888);
             Utils.matToBitmap(mat,resultBitmap);
             debugSaveBitmapToFile(resultBitmap);
-
             String text = convertBitmapToText(resultBitmap);
+            SaveToText(text);
             Intent resultIntent = new Intent();
             resultIntent.putExtra("detectedText", text);
             setResult(Activity.RESULT_OK, resultIntent);
@@ -214,30 +207,8 @@ public class OCR extends AppCompatActivity {
 
 
         }
-
-
-
-
-
-
-
-        /* Bitmap lBitmap =Bitmap.createBitmap(resultBitmap,0 ,0,resultBitmap.getWidth()/2, 1490);
-
-        debugSaveBitmapToFile(lBitmap);
-
-        Bitmap rBitmap =Bitmap.createBitmap(resultBitmap, resultBitmap.getWidth()/2,0,resultBitmap.getWidth()-resultBitmap.getWidth()/2, 1490);
-        debugSaveBitmapToFile(rBitmap);
-
-        debugSaveBitmapToFile(resultBitmap);
-        */
-
-
-
-
-
-
-
     }
+
 
     private String convertBitmapToText(Bitmap bitmap) {
 
@@ -276,9 +247,10 @@ public class OCR extends AppCompatActivity {
             for (TextBlock textBlock : textBlocks) {
                 if (textBlock != null && textBlock.getValue() != null) {
                     detectedText.append(textBlock.getValue());
-                    detectedText.append("\n");
+                    //detectedText.append("\n");
                 }
             }
+
 
             return detectedText.toString();
 

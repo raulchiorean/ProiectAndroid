@@ -7,6 +7,7 @@ import android.speech.tts.TextToSpeech;
 import android.support.annotation.NonNull;
 import android.support.v4.view.GestureDetectorCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Toast;
@@ -40,10 +41,11 @@ import static io.fotoapparat.parameter.selector.LensPositionSelectors.lensPositi
 import static io.fotoapparat.parameter.selector.Selectors.firstAvailable;
 import static io.fotoapparat.parameter.selector.SizeSelectors.biggestSize;
 
-public class Meniu extends AppCompatActivity {
+public class Meniu extends AppCompatActivity implements View.OnClickListener,GestureDetector.OnGestureListener {
 
         private GestureDetectorCompat gestureObject;
         public static final int OCR_ACTIVITY_CODE = 123;
+        public static final int Shh = 1234;
         private final PermissionsDelegate permissionsDelegate = new PermissionsDelegate(this);
         private boolean hasCameraPermission;
         private CameraView cameraView;
@@ -53,8 +55,28 @@ public class Meniu extends AppCompatActivity {
         private FotoapparatSwitcher fotoapparatSwitcher;
         private Fotoapparat frontFotoapparat;
         private Fotoapparat backFotoapparat;
+        private static final String DEBUG_TAG = "Gestures";
 
         private GestureDetectorCompat mDetector;
+        String detectedText ;
+
+
+    private static final int SWIPE_MIN_DISTANCE = 120;
+    private static final int SWIPE_MAX_OFF_PATH = 250;
+    private static final int SWIPE_THRESHOLD_VELOCITY = 200;
+    private GestureDetector gestureDetector;
+    View.OnTouchListener gestureListener;
+
+    private static final String TAG = "TextToSpeechDemo";
+
+
+    private static final String LAST_SPOKEN = "lastSpoken";
+
+
+    private TextToSpeech tts;
+
+
+
     static{ System.loadLibrary("opencv_java"); }
     @Override
         protected void onCreate(Bundle savedInstanceState) {
@@ -72,15 +94,76 @@ public class Meniu extends AppCompatActivity {
 
             setupFotoapparat();
 
-            takePictureOnClick();
-            focusOnLongClick();
+
+            gestureDetector = new GestureDetector(this);
+            gestureListener = new View.OnTouchListener() {
+                public boolean onTouch(View v, MotionEvent event) {
+                    return gestureDetector.onTouchEvent(event);
+                }
+            };
+            cameraView.setOnClickListener(Meniu.this);
+            cameraView.setOnTouchListener(gestureListener);
+
+
         }
+
+    @Override
+    public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+        try {
+            if (Math.abs(e1.getY() - e2.getY()) > SWIPE_MAX_OFF_PATH)
+                return false;
+            // right to left swipe
+            if(e1.getX() - e2.getX() > SWIPE_MIN_DISTANCE && Math.abs(velocityX) > SWIPE_THRESHOLD_VELOCITY) {
+
+                t1.stop();
+            } else if (e2.getX() - e1.getX() > SWIPE_MIN_DISTANCE && Math.abs(velocityX) > SWIPE_THRESHOLD_VELOCITY) {
+
+            }
+        } catch (Exception e) {
+            // nothing
+        }
+        return false;
+    }
+
+
+
+        @Override
+        public boolean onDown(MotionEvent e) {
+            return true;
+        }
+
+    @Override
+    public void onShowPress(MotionEvent e) {
+
+    }
+
+    @Override
+    public boolean onSingleTapUp(MotionEvent e) {
+        takePicture();
+        return false;
+    }
+
+    @Override
+    public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+        return false;
+    }
+
+    @Override
+    public void onLongPress(MotionEvent e) {
+        fotoapparatSwitcher.getCurrentFotoapparat().autoFocus();
+    }
+
+
+
+
     @Override
     public boolean onTouchEvent(MotionEvent event){
-        this.mDetector.onTouchEvent(event);
-        // Be sure to call the superclass implementation
+
         return super.onTouchEvent(event);
     }
+
+
+
 
 
 
@@ -92,30 +175,6 @@ public class Meniu extends AppCompatActivity {
         }
 
 
-
-
-
-
-
-        private void focusOnLongClick() {
-            cameraView.setOnLongClickListener(new View.OnLongClickListener() {
-                @Override
-                public boolean onLongClick(View v) {
-                    fotoapparatSwitcher.getCurrentFotoapparat().autoFocus();
-
-                    return true;
-                }
-            });
-        }
-
-        private void takePictureOnClick() {
-            cameraView.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    takePicture();
-                }
-            });
-        }
 
         private boolean canSwitchCameras() {
             return frontFotoapparat.isAvailable() == backFotoapparat.isAvailable();
@@ -133,7 +192,7 @@ public class Meniu extends AppCompatActivity {
                             autoFocus(),
                             fixed()
                     ))
-                    .flash(autoFlash())
+                    .flash(autoFlash() )
                     .frameProcessor(new SampleFrameProcessor())
                     .logger(loggers(
                             logcat(),
@@ -158,7 +217,6 @@ public class Meniu extends AppCompatActivity {
             Fotoapparat.with(this);
             PhotoResult photoResult = fotoapparatSwitcher.getCurrentFotoapparat().takePicture();
             final File file = new File(getExternalFilesDir("cam_app"), generatePictureName());
-
             photoResult.saveToFile(file).whenDone(new PendingResult.Callback<Void>() {
                 @Override
                 public void onResult(Void t) {
@@ -180,12 +238,15 @@ public class Meniu extends AppCompatActivity {
                     final String detectedText = data.getStringExtra("detectedText");
 
                     t1=new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
+
                         @Override
                         public void onInit(int status) {
+
                             if(status != TextToSpeech.ERROR) {
                                 t1.setLanguage(Locale.US);
                                 t1.setSpeechRate(0.72f);
                                 int success = t1.speak(detectedText, TextToSpeech.QUEUE_FLUSH, null);
+
                             }
                         }
 
@@ -193,11 +254,16 @@ public class Meniu extends AppCompatActivity {
                     });
 
 
+
+
                 }
                 break;
             }
         }
+
     }
+
+
 
         @Override
         protected void onStart() {
@@ -210,10 +276,18 @@ public class Meniu extends AppCompatActivity {
         @Override
         protected void onStop() {
             super.onStop();
+            t1.stop();
             if (hasCameraPermission) {
                 fotoapparatSwitcher.stop();
             }
         }
+        public void onPause(){
+        if(t1 !=null){
+            t1.stop();
+            t1.shutdown();
+        }
+        super.onPause();
+     }
 
         @Override
         public void onRequestPermissionsResult(int requestCode,
@@ -226,7 +300,13 @@ public class Meniu extends AppCompatActivity {
             }
         }
 
-        private class SampleFrameProcessor implements FrameProcessor {
+    @Override
+    public void onClick(View v) {
+        takePicture();
+
+    }
+
+    private class SampleFrameProcessor implements FrameProcessor {
 
             @Override
             public void processFrame(Frame frame) {
