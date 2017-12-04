@@ -46,7 +46,7 @@ public class OCR extends AppCompatActivity {
 
     private Context _context = null;
     private static final String TAG = OCR.class.getSimpleName();
-
+    private int nr=0;
     public OCR()
     {
     }
@@ -128,15 +128,17 @@ public class OCR extends AppCompatActivity {
     void SaveToText(String temp)
     {
 
+
         File root = getExternalFilesDir(Environment.DIRECTORY_DCIM);
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+
 
         try {
 
             if (!root.exists()) {
                 root.mkdirs();
             }
-            File gpxfile= new File(root,timeStamp +".txt");
+            File gpxfile= new File(root,nr +".txt");
+            nr++;
             FileWriter writer = new FileWriter(gpxfile);
             writer.append(temp);
             writer.flush();
@@ -147,9 +149,9 @@ public class OCR extends AppCompatActivity {
         }
     }
 
+
     private void crop(Bitmap bitmap)
     {
-        int i=0;
 
         Mat matImage = new Mat(bitmap.getHeight(), bitmap.getWidth(), CvType.CV_8UC3);
         Utils.bitmapToMat(bitmap, matImage);
@@ -169,9 +171,9 @@ public class OCR extends AppCompatActivity {
 
 
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_OPEN, new Size(5, 5));
-        Imgproc.dilate(bw, bw, kernel,  new Point(0,1), 25);
-        Imgproc.erode(bw, bw, kernel,  new Point(0,1), 1);
-        Imgproc.dilate(bw, bw, kernel,  new Point(0,1), 15);
+        Imgproc.dilate(bw, bw, kernel,  new Point(0,1), 19);
+        Imgproc.erode(bw, bw, kernel,  new Point(0,1), 3);
+        Imgproc.dilate(bw, bw, kernel,  new Point(0,1), 5);
 
         List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
         Mat hierarchy = new Mat();
@@ -179,6 +181,7 @@ public class OCR extends AppCompatActivity {
 
         Imgproc.findContours(bw,contours,hierarchy,Imgproc.RETR_LIST,Imgproc.CHAIN_APPROX_SIMPLE);
         ArrayList<Rect> boundingRects = new ArrayList<Rect>();
+
         for(MatOfPoint contour: contours)
         {
             Rect boundingRect = Imgproc.boundingRect(contour);
@@ -187,26 +190,64 @@ public class OCR extends AppCompatActivity {
 
         }
         ArrayList<Mat> croppedImages = new ArrayList<Mat>();
+        ArrayList<Mat> croImages = new ArrayList<Mat>();
+        Mat ma = new Mat();
+        int w=0;
+        float x1=0;
+        float y1=0;
+        float x2=0;
+        float y2=0;
         for(Rect rect : boundingRects)
         {
-            Mat croppedImage= crop1(matImage,rect);
-            croppedImages.add(croppedImage);
+            if(rect.height>500 && rect.width>500) {
+                x2=x1;
+                y2=y1;
+                x1=rect.x;
+                y1=rect.y;
+                Mat croppedImage = crop1(matImage, rect);
+                croppedImages.add(croppedImage);
+            }
+
         }
         List<Mat> croppedImage2=croppedImages;
+        int kk=0;
+        for(Mat mat2 : croppedImage2)
+        {
+            Mat mat4=mat2;
+            if(x2>x1 && kk==0)
+            {
+                for(Mat mat3:croppedImage2)
+                {
+                    mat4=mat3;
+                }
+                Mat mat5 =mat2;
+                mat2=mat4;
+                mat4=mat5;
+                kk++;
+            }
+        }
         for(Mat mat : croppedImage2)
         {
+
             Bitmap resultBitmap = Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888);
             Utils.matToBitmap(mat,resultBitmap);
-            debugSaveBitmapToFile(resultBitmap);
+
             String text = convertBitmapToText(resultBitmap);
-            SaveToText(text);
-            Intent resultIntent = new Intent();
-            resultIntent.putExtra("detectedText", text);
-            setResult(Activity.RESULT_OK, resultIntent);
+
+
+
+                    debugSaveBitmapToFile(resultBitmap);
+                    SaveToText(text);
+                    Intent resultIntent = new Intent();
+                    resultIntent.putExtra("detectedText", text);
+                    setResult(Activity.RESULT_OK, resultIntent);
+
+
 
 
 
         }
+
     }
 
 
@@ -247,16 +288,22 @@ public class OCR extends AppCompatActivity {
             for (TextBlock textBlock : textBlocks) {
                 if (textBlock != null && textBlock.getValue() != null) {
                     detectedText.append(textBlock.getValue());
+
                     //detectedText.append("\n");
                 }
             }
-
-
-            return detectedText.toString();
+            String b= new String();
+            b=detectedText.toString();
+            b=b.replaceAll("\n"," ");
+            return b.toString();
 
         } finally {
             textRecognizer.release();
         }
+    }
+    public void retn()
+    {
+        nr=0;
     }
 
 

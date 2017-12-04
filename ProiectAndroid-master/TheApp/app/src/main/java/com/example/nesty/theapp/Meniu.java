@@ -2,17 +2,26 @@ package com.example.nesty.theapp;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.media.MediaPlayer;
 import android.os.Bundle;
+import android.os.Environment;
 import android.speech.tts.TextToSpeech;
 import android.support.annotation.NonNull;
 import android.support.v4.view.GestureDetectorCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Toast;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -59,7 +68,13 @@ public class Meniu extends AppCompatActivity implements View.OnClickListener,Ges
 
         private GestureDetectorCompat mDetector;
         String detectedText ;
-
+        int n=1;
+        int r=0;
+        int r2=0;
+        int jr=0;
+        int ch=0;
+        int cac=0;
+        public int x=0;
 
     private static final int SWIPE_MIN_DISTANCE = 120;
     private static final int SWIPE_MAX_OFF_PATH = 250;
@@ -74,6 +89,7 @@ public class Meniu extends AppCompatActivity implements View.OnClickListener,Ges
 
 
     private TextToSpeech tts;
+    private int stopp=0;
 
 
 
@@ -82,6 +98,8 @@ public class Meniu extends AppCompatActivity implements View.OnClickListener,Ges
         protected void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
             setContentView(R.layout.activity_meniu);
+            MediaPlayer rang= MediaPlayer.create(this,R.raw.takepicture);
+            rang.start();
 
             cameraView = (CameraView) findViewById(R.id.camera_view);
             hasCameraPermission = permissionsDelegate.hasCameraPermission();
@@ -107,6 +125,7 @@ public class Meniu extends AppCompatActivity implements View.OnClickListener,Ges
 
         }
 
+
     @Override
     public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
         try {
@@ -117,6 +136,17 @@ public class Meniu extends AppCompatActivity implements View.OnClickListener,Ges
 
                 t1.stop();
             } else if (e2.getX() - e1.getX() > SWIPE_MIN_DISTANCE && Math.abs(velocityX) > SWIPE_THRESHOLD_VELOCITY) {
+                if(jr==0)
+                {
+                    next(jr);
+                    jr++;
+                }
+                else
+                {
+                    next(jr);
+                    jr=0;
+
+                }
 
             }
         } catch (Exception e) {
@@ -139,7 +169,21 @@ public class Meniu extends AppCompatActivity implements View.OnClickListener,Ges
 
     @Override
     public boolean onSingleTapUp(MotionEvent e) {
+
+
+        File root = getExternalFilesDir(Environment.DIRECTORY_DCIM);
+        int m=0;
+        while(m<2) {
+            String imageFileName = m + ".txt";
+            File file1 = new File(root,imageFileName);
+            file1.delete();
+            m++;
+        }
+
+        MediaPlayer ring = MediaPlayer.create(this, R.raw.cam);
+        ring.start();
         takePicture();
+        cac = 0;
         return false;
     }
 
@@ -223,6 +267,7 @@ public class Meniu extends AppCompatActivity implements View.OnClickListener,Ges
                     Intent ocr = new Intent(Meniu.this, OCR.class);
                     ocr.putExtra("bitmapFilePath", file.getAbsolutePath());
                     startActivityForResult(ocr, Meniu.OCR_ACTIVITY_CODE);
+
                 }
             });
         }
@@ -239,14 +284,21 @@ public class Meniu extends AppCompatActivity implements View.OnClickListener,Ges
 
                     t1=new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
 
+
                         @Override
                         public void onInit(int status) {
+                            jr=0;
 
-                            if(status != TextToSpeech.ERROR) {
+
+                            if (status != TextToSpeech.ERROR) {
+
                                 t1.setLanguage(Locale.US);
-                                t1.setSpeechRate(0.72f);
-                                int success = t1.speak(detectedText, TextToSpeech.QUEUE_FLUSH, null);
-
+                                t1.setSpeechRate(0.90f);
+                                if(ch==0)
+                                {
+                                    int suc=t1.speak("Swipe up to start reading the text. Swipe up again to read next page. Swipe down to stop", TextToSpeech.QUEUE_FLUSH, null);
+                                    ch++;
+                                }
                             }
                         }
 
@@ -260,6 +312,43 @@ public class Meniu extends AppCompatActivity implements View.OnClickListener,Ges
                 break;
             }
         }
+
+    }
+    public void next(int v)
+    {
+
+            String imageFileName = v + ".txt";
+            File sdcard = getExternalFilesDir(Environment.DIRECTORY_DCIM);
+
+            File file = new File(sdcard, imageFileName);
+//Read text from filetry {
+            String ret = "";
+            try {
+                InputStream inputStream = new FileInputStream(file);
+
+                if (inputStream != null) {
+                    InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
+                    BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
+                    String receiveString = "";
+                    StringBuilder stringBuilder = new StringBuilder();
+
+                    while ((receiveString = bufferedReader.readLine()) != null) {
+                        stringBuilder.append(receiveString);
+                    }
+
+                    inputStream.close();
+                    ret = stringBuilder.toString();
+                }
+            } catch (FileNotFoundException e) {
+                Log.e("login activity", "File not found: " + e.toString());
+            } catch (IOException e) {
+                Log.e("login activity", "Can not read file: " + e.toString());
+            }
+
+
+
+            int success = t1.speak(ret, TextToSpeech.QUEUE_FLUSH, null);
+            n=0;
 
     }
 
